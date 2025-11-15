@@ -1,0 +1,60 @@
+<div class="bg-white rounded-lg shadow p-6">
+    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+        <svg class="w-6 h-6 mr-2 text-ciso-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+        </svg>
+        Citations & Sources
+    </h3>
+
+    <p class="text-sm text-gray-600 mb-4">
+        All claims in this assessment are backed by the following sources. Sources are tagged as
+        <span class="source-tag-vendor px-2 py-1 rounded text-xs font-semibold">VENDOR-STATED</span> or
+        <span class="source-tag-independent px-2 py-1 rounded text-xs font-semibold">INDEPENDENT</span>
+        to help you evaluate the evidence quality.
+    </p>
+
+    <div class="space-y-3">
+        {% for key, citation in assessment.citations.items() %}
+        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center mb-2">
+                        <span class="citation-badge">[{{ key }}]</span>
+                        <span class="ml-2 px-2 py-1 rounded text-xs font-semibold
+                            {% if citation.type == 'vendor-stated' %}source-tag-vendor
+                            {% else %}source-tag-independent{% endif %}">
+                            {{ citation.type|upper }}
+                        </span>
+                    </div>
+                    <h4 class="font-medium text-gray-900 mb-1">{{ citation.title }}</h4>
+                    <a href="{{ citation.url }}" target="_blank" rel="noopener noreferrer"
+                       class="text-sm text-blue-600 hover:text-blue-800 break-all inline-flex items-center">
+                        {{ citation.url }}
+                        <svg class="w-3 h-3 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Source Type Summary -->
+    <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="grid grid-cols-2 gap-4 text-center">
+            <div>
+                <div class="text-2xl font-bold text-blue-600">
+                    {{ assessment.citations.values()|selectattr('type', 'equalto', 'vendor-stated')|list|length }}
+                </div>
+                <div class="text-xs text-gray-600 mt-1">Vendor-Stated Sources</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-green-600">
+                    {{ assessment.citations.values()|selectattr('type', 'equalto', 'independent')|list|length }}
+                </div>
+                <div class="text-xs text-gray-600 mt-1">Independent Sources</div>
+            </div>
+        </div>
+    </div>
+</div>

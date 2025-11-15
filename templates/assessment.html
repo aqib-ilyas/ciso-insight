@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assessment.product_name }} - Security Assessment | CISO Insight{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="flex items-start justify-between">
+            <div class="flex-1">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ assessment.product_name }}</h1>
+                <div class="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        <strong>Vendor:</strong>&nbsp;{{ assessment.vendor_name }}
+                    </span>
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                        </svg>
+                        <strong>Category:</strong>&nbsp;{{ assessment.category }}
+                    </span>
+                    {% if assessment.official_website %}
+                    <span class="flex items-center">
+                        <a href="{{ assessment.official_website }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                            </svg>
+                            Official Website
+                        </a>
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="text-gray-700">{{ assessment.description }}</p>
+
+                <!-- Cache indicator -->
+                {% if cache_age %}
+                <div class="mt-3 inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                    </svg>
+                    Cached result from {{ cache_age }}
+                </div>
+                {% endif %}
+
+                <!-- Metadata badges -->
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
+                        Evidence Quality: <strong>{{ assessment.metadata.evidence_quality|upper }}</strong>
+                    </span>
+                    <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
+                        Data Completeness: <strong>{{ assessment.metadata.data_completeness }}%</strong>
+                    </span>
+                    <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
+                        Assessed: <strong>{{ assessment.metadata.assessed_at[:10] }}</strong>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trust Score -->
+    {% include "components/trust_score.html" %}
+
+    <!-- Security Posture -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-ciso-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+            Security Posture
+        </h3>
+
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-2">Summary</h4>
+                <p class="text-gray-700">{{ assessment.security_posture.summary|safe }}</p>
+            </div>
+
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-2">Vendor Reputation</h4>
+                <p class="text-gray-700">{{ assessment.security_posture.vendor_reputation|safe }}</p>
+            </div>
+
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-2">Data Handling</h4>
+                <p class="text-gray-700">{{ assessment.security_posture.data_handling|safe }}</p>
+            </div>
+
+            {% if assessment.security_posture.compliance %}
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-2">Compliance & Certifications</h4>
+                <div class="flex flex-wrap gap-2">
+                    {% for cert in assessment.security_posture.compliance %}
+                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                        {{ cert }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-2">Deployment Controls</h4>
+                <p class="text-gray-700">{{ assessment.security_posture.deployment_controls|safe }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- CVE Analysis -->
+    {% include "components/cve_section.html" %}
+
+    <!-- Incidents -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-ciso-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Security Incidents
+        </h3>
+
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-2">Known Breaches</h4>
+                <p class="text-gray-700">{{ assessment.incidents.known_breaches|safe }}</p>
+            </div>
+
+            <div>
+                <h4 class="font-semibold text-gray-900 mb-2">Abuse Signals</h4>
+                <p class="text-gray-700">{{ assessment.incidents.abuse_signals|safe }}</p>
+            </div>
+
+            {% if assessment.incidents.citations %}
+            <div class="pt-3 border-t border-gray-200">
+                <p class="text-xs text-gray-600">
+                    <span class="font-semibold">Sources:</span>
+                    {% for citation_url in assessment.incidents.citations %}
+                    <a href="{{ citation_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 ml-1">
+                        [{{ loop.index }}]
+                    </a>
+                    {% endfor %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alternatives -->
+    {% if assessment.alternatives %}
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-ciso-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+            </svg>
+            Safer Alternatives
+        </h3>
+
+        <div class="space-y-3">
+            {% for alt in assessment.alternatives %}
+            <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                <div class="flex items-start justify-between mb-2">
+                    <div>
+                        <h4 class="font-semibold text-gray-900">{{ alt.name }}</h4>
+                        <p class="text-sm text-gray-600">by {{ alt.vendor }}</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-700">{{ alt.rationale }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Citations -->
+    {% if assessment.citations %}
+    {% include "components/citations.html" %}
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="flex flex-wrap gap-4 mt-8">
+        <a href="/" class="px-6 py-3 bg-ciso-blue text-white font-semibold rounded-lg hover:bg-blue-700 transition">
+            New Assessment
+        </a>
+        <a href="/history" class="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition">
+            View History
+        </a>
+        <a href="/api/assessment/{{ product_key }}" target="_blank" class="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition">
+            Export JSON
+        </a>
+    </div>
+</div>
+{% endblock %}

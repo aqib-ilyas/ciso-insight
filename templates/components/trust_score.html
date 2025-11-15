@@ -1,0 +1,128 @@
+{% set score = assessment.trust_score.score %}
+{% set confidence = assessment.trust_score.confidence %}
+
+{% if score >= 80 %}
+    {% set color_class = "trust-score-high" %}
+    {% set text_color = "text-green-800" %}
+    {% set bg_color = "bg-green-100" %}
+    {% set label = "HIGH TRUST" %}
+{% elif score >= 50 %}
+    {% set color_class = "trust-score-medium" %}
+    {% set text_color = "text-yellow-800" %}
+    {% set bg_color = "bg-yellow-100" %}
+    {% set label = "MEDIUM TRUST" %}
+{% else %}
+    {% set color_class = "trust-score-low" %}
+    {% set text_color = "text-red-800" %}
+    {% set bg_color = "bg-red-100" %}
+    {% set label = "LOW TRUST" %}
+{% endif %}
+
+<div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+    <div class="flex items-center justify-between">
+        <!-- Trust Score Display -->
+        <div class="flex items-center space-x-6">
+            <div class="{{ color_class }} rounded-full w-32 h-32 flex items-center justify-center shadow-lg">
+                <div class="text-center text-white">
+                    <div class="text-5xl font-bold">{{ score }}</div>
+                    <div class="text-sm font-medium">/ 100</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="text-3xl font-bold {{ text_color }} mb-2">{{ label }}</div>
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="text-sm font-medium text-gray-600">Confidence:</span>
+                    <span class="px-3 py-1 {{ bg_color }} {{ text_color }} rounded-full text-xs font-semibold uppercase">
+                        {{ confidence }}
+                    </span>
+                </div>
+                <p class="text-gray-700 max-w-xl">{{ assessment.trust_score.rationale }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calculation Breakdown -->
+    <details class="mt-6 border-t pt-6">
+        <summary class="cursor-pointer font-semibold text-gray-900 hover:text-ciso-blue">
+            View Score Calculation Breakdown
+        </summary>
+        <div class="mt-4 bg-gray-50 rounded-lg p-4">
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Base Score:</span>
+                    <span class="font-mono font-medium">{{ assessment.trust_score.calculation_breakdown.base_score }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">CVE Impact:</span>
+                    <span class="font-mono font-medium {{ 'text-red-600' if assessment.trust_score.calculation_breakdown.cve_impact < 0 else 'text-green-600' }}">
+                        {{ assessment.trust_score.calculation_breakdown.cve_impact if assessment.trust_score.calculation_breakdown.cve_impact >= 0 else assessment.trust_score.calculation_breakdown.cve_impact }}
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Certifications Bonus:</span>
+                    <span class="font-mono font-medium text-green-600">+{{ assessment.trust_score.calculation_breakdown.certifications_bonus }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Breach Penalty:</span>
+                    <span class="font-mono font-medium {{ 'text-red-600' if assessment.trust_score.calculation_breakdown.breach_penalty < 0 else 'text-gray-600' }}">
+                        {{ assessment.trust_score.calculation_breakdown.breach_penalty if assessment.trust_score.calculation_breakdown.breach_penalty >= 0 else assessment.trust_score.calculation_breakdown.breach_penalty }}
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Vendor Reputation:</span>
+                    <span class="font-mono font-medium {{ 'text-green-600' if assessment.trust_score.calculation_breakdown.vendor_reputation > 0 else 'text-red-600' if assessment.trust_score.calculation_breakdown.vendor_reputation < 0 else 'text-gray-600' }}">
+                        {{ '+' + assessment.trust_score.calculation_breakdown.vendor_reputation|string if assessment.trust_score.calculation_breakdown.vendor_reputation > 0 else assessment.trust_score.calculation_breakdown.vendor_reputation }}
+                    </span>
+                </div>
+                <div class="flex justify-between pt-2 border-t border-gray-300">
+                    <span class="font-semibold text-gray-900">Final Score:</span>
+                    <span class="font-mono font-bold {{ text_color }}">{{ assessment.trust_score.calculation_breakdown.final }}</span>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <!-- Risk and Trust Factors -->
+    <div class="mt-6 grid md:grid-cols-2 gap-4">
+        <!-- Risk Factors -->
+        {% if assessment.trust_score.risk_factors %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h4 class="font-semibold text-red-900 mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+                Risk Factors
+            </h4>
+            <ul class="space-y-1 text-sm text-red-800">
+                {% for factor in assessment.trust_score.risk_factors %}
+                <li class="flex items-start">
+                    <span class="mr-2">•</span>
+                    <span>{{ factor }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Trust Factors -->
+        {% if assessment.trust_score.trust_factors %}
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 class="font-semibold text-green-900 mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                </svg>
+                Trust Factors
+            </h4>
+            <ul class="space-y-1 text-sm text-green-800">
+                {% for factor in assessment.trust_score.trust_factors %}
+                <li class="flex items-start">
+                    <span class="mr-2">•</span>
+                    <span>{{ factor }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>

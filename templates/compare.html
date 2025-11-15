@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Products | CISO Insight{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Product Comparison</h1>
+        <p class="text-gray-600">Side-by-side security posture comparison</p>
+    </div>
+
+    {% if assessments %}
+    <div class="bg-white rounded-lg shadow overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Metric
+                    </th>
+                    {% for assessment in assessments %}
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {{ assessment.product_name }}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <!-- Trust Score -->
+                <tr class="bg-gray-50 font-semibold">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        Trust Score
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% set score = assessment.trust_score.score %}
+                        {% if score >= 80 %}
+                            {% set badge_color = "bg-green-100 text-green-800" %}
+                        {% elif score >= 50 %}
+                            {% set badge_color = "bg-yellow-100 text-yellow-800" %}
+                        {% else %}
+                            {% set badge_color = "bg-red-100 text-red-800" %}
+                        {% endif %}
+                        <span class="px-3 py-1 inline-flex text-lg leading-5 font-bold rounded-full {{ badge_color }}">
+                            {{ score }}/100
+                        </span>
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Vendor -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Vendor
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {{ assessment.vendor_name }}
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Category -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Category
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {{ assessment.category }}
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Total CVEs -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Total CVEs
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {{ assessment.cve_analysis.total_cves }}
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Critical CVEs -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Critical CVEs
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="{% if assessment.cve_analysis.critical_count > 0 %}text-red-600 font-semibold{% else %}text-gray-600{% endif %}">
+                            {{ assessment.cve_analysis.critical_count }}
+                        </span>
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- High CVEs -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        High CVEs
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="{% if assessment.cve_analysis.high_count > 0 %}text-orange-600 font-semibold{% else %}text-gray-600{% endif %}">
+                            {{ assessment.cve_analysis.high_count }}
+                        </span>
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Patch Cadence -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Patch Cadence
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-1 rounded text-xs font-semibold
+                            {% if assessment.cve_analysis.patch_cadence == 'fast' %}bg-green-100 text-green-800
+                            {% elif assessment.cve_analysis.patch_cadence == 'medium' %}bg-yellow-100 text-yellow-800
+                            {% elif assessment.cve_analysis.patch_cadence == 'slow' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ assessment.cve_analysis.patch_cadence|upper }}
+                        </span>
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- CISA KEV -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        In CISA KEV
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {% if assessment.cve_analysis.in_cisa_kev %}
+                            <span class="text-red-600 font-semibold">YES ⚠️</span>
+                        {% else %}
+                            <span class="text-green-600">No</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Compliance -->
+                <tr>
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                        Compliance
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 text-sm text-gray-600">
+                        {% if assessment.security_posture.compliance %}
+                            {{ assessment.security_posture.compliance|join(', ') }}
+                        {% else %}
+                            None listed
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Evidence Quality -->
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Evidence Quality
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-1 rounded text-xs font-semibold
+                            {% if assessment.metadata.evidence_quality == 'high' %}bg-green-100 text-green-800
+                            {% elif assessment.metadata.evidence_quality == 'medium' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ assessment.metadata.evidence_quality|upper }}
+                        </span>
+                    </td>
+                    {% endfor %}
+                </tr>
+
+                <!-- Actions -->
+                <tr class="bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Actions
+                    </td>
+                    {% for assessment in assessments %}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href="/assessment/{{ assessment.product_name|lower|replace(' ', '_') }}" class="text-ciso-blue hover:text-blue-700 font-medium">
+                            View Details →
+                        </a>
+                    </td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-6">
+        <a href="/" class="text-ciso-blue hover:text-blue-700 font-medium">
+            &larr; Back to Search
+        </a>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow p-12 text-center">
+        <p class="text-gray-600">No products to compare. Please provide at least 2 products.</p>
+        <div class="mt-6">
+            <a href="/" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-ciso-blue hover:bg-blue-700">
+                Back to Search
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
