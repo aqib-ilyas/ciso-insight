@@ -16,6 +16,7 @@ from .models import Assessment
 from .collectors.nvd import NVDClient
 from .collectors.cisa_kev import CISAKEVClient
 from .collectors.scraper import SecurityScraper
+from .collectors.virustotal import VirusTotalClient
 from .ai.resolver import EntityResolver
 from .ai.synthesizer import SecuritySynthesizer
 
@@ -59,6 +60,7 @@ templates = Jinja2Templates(directory="templates")
 nvd_client = NVDClient()
 kev_client = CISAKEVClient()
 scraper = SecurityScraper()
+virustotal_client = VirusTotalClient()
 resolver = EntityResolver()
 synthesizer = SecuritySynthesizer()
 
@@ -101,13 +103,13 @@ async def index(request: Request):
 
 
 @app.post("/assess")
-async def assess_product(request: Request, input: str = Form(...)):
+async def assess_product(request: Request, input: str = Form(...), version: str = Form(None)):
     """Process security assessment."""
-    logger.info(f"Assessment request for: {input}")
+    logger.info(f"Assessment request for: {input}, version: {version or 'auto-detect'}")
 
     try:
         # Step 1: Entity Resolution
-        entity = await resolver.resolve_entity(input)
+        entity = await resolver.resolve_entity(input, user_version=version)
 
         if entity.product_name == "UNKNOWN":
             return templates.TemplateResponse(
@@ -118,8 +120,22 @@ async def assess_product(request: Request, input: str = Form(...)):
                 },
             )
 
+        logger.info(f"✓ Resolved entity: {entity.product_name} (Vendor: {entity.vendor_name}, Version: {entity.version})")
+
+        # Step 1.5: Verify domain if official website exists
+        if entity.official_website:
+            domain_valid = await scraper.verify_domain(entity.official_website)
+            if not domain_valid:
+                return templates.TemplateResponse(
+                    "components/error.html",
+                    {
+                        "request": request,
+                        "error": f"The domain {entity.official_website} could not be verified or is not accessible. Please check the URL and try again.",
+                    },
+                )
+
         # Check cache first
-        cached = await db.get_assessment(entity.product_name)
+        cached = await db.get_assessment(entity.product_name, entity.version)
         if cached:
             logger.info(f"Returning cached assessment for {entity.product_name}")
             assessment_data = cached["assessment"]
@@ -127,7 +143,7 @@ async def assess_product(request: Request, input: str = Form(...)):
             cache_age = calculate_cache_age(cached["timestamp"])
 
             return templates.TemplateResponse(
-                "assessment.html",
+                "components/assessment_inline.html",
                 {
                     "request": request,
                     "assessment": assessment_data,
@@ -139,37 +155,87 @@ async def assess_product(request: Request, input: str = Form(...)):
         # Step 2: Data Collection (run in parallel where possible)
         logger.info(f"Collecting data for {entity.product_name}")
 
-        # Collect CVE data
-        cve_data = await nvd_client.search_cves(
+        # Collect CVE data from NVD and CISA KEV in parallel
+        import asyncio
+        nvd_task = nvd_client.search_cves(
+            entity.product_name,
+            entity.vendor_name,
+            entity.version,
+        )
+        kev_task = kev_client.check_product_in_kev(
             entity.product_name,
             entity.vendor_name,
         )
 
-        # Check CISA KEV
-        kev_data = await kev_client.check_product_in_kev(
-            entity.product_name,
-            entity.vendor_name,
-        )
+        cve_data, kev_data = await asyncio.gather(nvd_task, kev_task)
 
-        # Scrape security pages
+        # If KEV has CVEs but NVD search found nothing, look up the KEV CVE IDs in NVD
+        if kev_data.get("in_kev") and kev_data.get("kev_count", 0) > 0 and cve_data.get("total_cves", 0) == 0:
+            logger.warning(
+                f"KEV has {kev_data['kev_count']} CVEs but NVD search found 0. "
+                f"This suggests NVD search query needs adjustment."
+            )
+            # Extract CVE IDs from KEV data
+            kev_cve_ids = [v.get("cve_id") for v in kev_data.get("kev_vulnerabilities", [])]
+            if kev_cve_ids:
+                logger.info(f"Looking up KEV CVE IDs in NVD: {kev_cve_ids}")
+                # Query NVD for each KEV CVE ID
+                for cve_id in kev_cve_ids[:5]:  # Limit to avoid rate limits
+                    try:
+                        specific_cve = await nvd_client.search_cve_by_id(cve_id)
+                        if specific_cve:
+                            # Add to CVE data
+                            if cve_data.get("total_cves", 0) == 0:
+                                cve_data = specific_cve
+                            else:
+                                # Merge the data
+                                cve_data["total_cves"] += specific_cve.get("total_cves", 0)
+                                cve_data["critical_count"] += specific_cve.get("critical_count", 0)
+                                cve_data["high_count"] += specific_cve.get("high_count", 0)
+                                cve_data["notable_cves"].extend(specific_cve.get("notable_cves", []))
+                    except Exception as e:
+                        logger.error(f"Failed to lookup CVE {cve_id}: {e}")
+
+        logger.info(f"Final CVE data: {cve_data['total_cves']} total CVEs, KEV: {kev_data.get('kev_count', 0)}")
+
+        # Scrape security pages and analyze domain reputation in parallel
         security_pages = {}
         terms_privacy = {}
+        virustotal_data = {}
+
         if entity.official_website:
-            security_pages = await scraper.scrape_security_pages(entity.official_website)
-            terms_privacy = await scraper.check_terms_and_privacy(entity.official_website)
+            # Run these in parallel for performance
+            security_task = scraper.scrape_security_pages(entity.official_website)
+            terms_task = scraper.check_terms_and_privacy(entity.official_website)
+            vt_task = virustotal_client.analyze_domain(entity.official_website)
+
+            security_pages, terms_privacy, virustotal_data = await asyncio.gather(
+                security_task, terms_task, vt_task
+            )
+
+            logger.info(
+                f"Domain reputation: {virustotal_data.get('safety_score', 'unknown')}, "
+                f"VT reputation score: {virustotal_data.get('reputation_score', 0)}"
+            )
 
         # Step 3: AI Synthesis
-        logger.info(f"Synthesizing assessment for {entity.product_name}")
+        logger.info(
+            f"Synthesizing assessment for {entity.product_name} "
+            f"(version: {entity.version}, SHA1: {entity.sha1 or 'N/A'})"
+        )
         assessment = await synthesizer.synthesize_assessment(
             product_name=entity.product_name,
             vendor_name=entity.vendor_name,
             official_website=entity.official_website,
             category=entity.category,
             description=entity.description,
+            version=entity.version,
+            sha1=entity.sha1,
             cve_data=cve_data,
             kev_data=kev_data,
             security_pages=security_pages,
             terms_privacy=terms_privacy,
+            virustotal_data=virustotal_data,
         )
 
         # Add timestamp
@@ -193,16 +259,17 @@ async def assess_product(request: Request, input: str = Form(...)):
             product_name=entity.product_name,
             vendor_name=entity.vendor_name,
             category=entity.category,
+            version=entity.version,
             trust_score=assessment.trust_score.score,
             assessment=assessment_dict,
             sources=sources,
         )
 
-        # Step 5: Return assessment
-        product_key = db._normalize_product_key(entity.product_name)
+        # Step 5: Return assessment (inline for HTMX)
+        product_key = db._normalize_product_key(entity.product_name, entity.version)
 
         return templates.TemplateResponse(
-            "assessment.html",
+            "components/assessment_inline.html",
             {
                 "request": request,
                 "assessment": assessment_dict,
@@ -225,7 +292,7 @@ async def assess_product(request: Request, input: str = Form(...)):
 @app.get("/assessment/{product_key}", response_class=HTMLResponse)
 async def view_assessment(request: Request, product_key: str):
     """View cached assessment."""
-    cached = await db.get_assessment(product_key)
+    cached = await db.get_assessment_by_key(product_key)
 
     if not cached:
         raise HTTPException(status_code=404, detail="Assessment not found")
@@ -259,6 +326,133 @@ async def history(request: Request):
     )
 
 
+@app.get("/compare/{product1}/{product2}", response_class=HTMLResponse)
+async def compare_two_products(request: Request, product1: str, product2: str):
+    """Compare two products side by side."""
+    logger.info(f"Comparing {product1} vs {product2}")
+
+    try:
+        # Get or generate assessments for both products
+        assessments = []
+
+        for product_name in [product1, product2]:
+            # Resolve entity to get version
+            entity = await resolver.resolve_entity(product_name)
+
+            if entity.product_name == "UNKNOWN":
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Could not identify product: {product_name}"
+                )
+
+            # Check cache first
+            cached = await db.get_assessment(entity.product_name, entity.version)
+
+            if cached:
+                logger.info(f"Using cached assessment for {product_name}")
+                assessment_data = cached["assessment"]
+                assessment_data["metadata"]["cache_hit"] = True
+                assessments.append(assessment_data)
+            else:
+                # Need to generate new assessment
+                logger.info(f"Generating new assessment for {product_name}")
+
+                # Collect data (abbreviated for performance)
+                import asyncio
+                nvd_task = nvd_client.search_cves(entity.product_name, entity.vendor_name, entity.version)
+                kev_task = kev_client.check_product_in_kev(entity.product_name, entity.vendor_name)
+                cve_data, kev_data = await asyncio.gather(nvd_task, kev_task)
+
+                # Handle KEV/NVD inconsistency
+                if kev_data.get("in_kev") and kev_data.get("kev_count", 0) > 0 and cve_data.get("total_cves", 0) == 0:
+                    kev_cve_ids = [v.get("cve_id") for v in kev_data.get("kev_vulnerabilities", [])]
+                    if kev_cve_ids:
+                        for cve_id in kev_cve_ids[:5]:
+                            try:
+                                specific_cve = await nvd_client.search_cve_by_id(cve_id)
+                                if specific_cve and specific_cve.get("total_cves", 0) > 0:
+                                    if cve_data.get("total_cves", 0) == 0:
+                                        cve_data = specific_cve
+                                    else:
+                                        cve_data["total_cves"] += specific_cve.get("total_cves", 0)
+                                        cve_data["critical_count"] += specific_cve.get("critical_count", 0)
+                                        cve_data["high_count"] += specific_cve.get("high_count", 0)
+                                        cve_data["notable_cves"].extend(specific_cve.get("notable_cves", []))
+                            except Exception as e:
+                                logger.error(f"Failed to lookup CVE {cve_id}: {e}")
+
+                security_pages = {}
+                terms_privacy = {}
+                virustotal_data = {}
+                if entity.official_website:
+                    security_task = scraper.scrape_security_pages(entity.official_website)
+                    terms_task = scraper.check_terms_and_privacy(entity.official_website)
+                    vt_task = virustotal_client.analyze_domain(entity.official_website)
+                    security_pages, terms_privacy, virustotal_data = await asyncio.gather(
+                        security_task, terms_task, vt_task
+                    )
+
+                # Synthesize assessment
+                assessment = await synthesizer.synthesize_assessment(
+                    product_name=entity.product_name,
+                    vendor_name=entity.vendor_name,
+                    official_website=entity.official_website,
+                    category=entity.category,
+                    description=entity.description,
+                    version=entity.version,
+                    sha1=entity.sha1,
+                    cve_data=cve_data,
+                    kev_data=kev_data,
+                    security_pages=security_pages,
+                    terms_privacy=terms_privacy,
+                    virustotal_data=virustotal_data,
+                )
+
+                assessment.metadata.assessed_at = datetime.utcnow().isoformat()
+                assessment.metadata.cache_hit = False
+                assessment_dict = assessment.model_dump()
+
+                # Cache it
+                sources = []
+                for citation in assessment.citations.values():
+                    sources.append({
+                        "url": citation.url,
+                        "type": citation.type,
+                        "title": citation.title,
+                    })
+
+                await db.save_assessment(
+                    product_name=entity.product_name,
+                    vendor_name=entity.vendor_name,
+                    category=entity.category,
+                    version=entity.version,
+                    trust_score=assessment.trust_score.score,
+                    assessment=assessment_dict,
+                    sources=sources,
+                )
+
+                assessments.append(assessment_dict)
+
+        return templates.TemplateResponse(
+            "compare.html",
+            {
+                "request": request,
+                "assessment1": assessments[0],
+                "assessment2": assessments[1],
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"Comparison failed: {str(e)}", exc_info=True)
+        return templates.TemplateResponse(
+            "components/error.html",
+            {
+                "request": request,
+                "error": f"Comparison failed: {str(e)}",
+            },
+        )
+
+
 @app.post("/compare")
 async def compare_products(request: Request, products: str = Form(...)):
     """Compare multiple products."""
@@ -286,8 +480,8 @@ async def compare_products(request: Request, products: str = Form(...)):
     # Get or create assessments for each product
     assessments = []
     for product in product_list:
-        # Check cache
-        cached = await db.get_assessment(product)
+        # Check cache (default to "latest" version)
+        cached = await db.get_assessment(product, "latest")
         if cached:
             assessments.append(cached["assessment"])
         else:
@@ -320,7 +514,7 @@ async def clear_cache():
 @app.get("/api/assessment/{product_key}")
 async def get_assessment_json(product_key: str):
     """Get assessment as JSON."""
-    cached = await db.get_assessment(product_key)
+    cached = await db.get_assessment_by_key(product_key)
 
     if not cached:
         raise HTTPException(status_code=404, detail="Assessment not found")

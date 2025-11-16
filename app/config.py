@@ -19,6 +19,10 @@ class Settings:
     # CISA KEV
     CISA_KEV_URL: str = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
+    # VirusTotal API
+    VIRUSTOTAL_API_KEY: str = os.getenv("VIRUSTOTAL_API_KEY", "")
+    VIRUSTOTAL_BASE_URL: str = "https://www.virustotal.com/api/v3"
+
     # Caching
     CACHE_TTL_HOURS: int = int(os.getenv("CACHE_TTL_HOURS", "24"))
     DATABASE_PATH: str = "ciso_insight.db"

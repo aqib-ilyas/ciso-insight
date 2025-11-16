@@ -39,13 +39,57 @@
                     <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                 </svg>
             </div>
-            <div class="ml-3">
+            <div class="ml-3 flex-1">
                 <p class="text-sm font-semibold text-red-800">
-                    CRITICAL: This product has vulnerabilities in the CISA Known Exploited Vulnerabilities (KEV) catalog
+                    CRITICAL: This product has {{ assessment.cve_analysis.kev_count }} vulnerabilit{{ 'y' if assessment.cve_analysis.kev_count == 1 else 'ies' }} in the CISA Known Exploited Vulnerabilities (KEV) catalog
                 </p>
                 <p class="text-xs text-red-700 mt-1">
                     These vulnerabilities are actively exploited in the wild and require immediate attention.
                 </p>
+
+                <!-- KEV Vulnerabilities List -->
+                {% if assessment.cve_analysis.kev_vulnerabilities %}
+                <div class="mt-3 space-y-2">
+                    {% for kev in assessment.cve_analysis.kev_vulnerabilities %}
+                    <div class="bg-white border border-red-300 rounded-lg p-3">
+                        <div class="flex items-start justify-between mb-2">
+                            <div>
+                                <span class="font-mono text-sm font-bold text-red-900">{{ kev.cve_id }}</span>
+                                <p class="text-sm font-semibold text-red-800 mt-1">{{ kev.name }}</p>
+                            </div>
+                            <span class="px-2 py-1 bg-red-200 text-red-900 rounded text-xs font-bold">EXPLOITED</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs text-gray-700 mt-2">
+                            {% if kev.vendor %}
+                            <div>
+                                <span class="font-semibold">Vendor:</span> {{ kev.vendor }}
+                            </div>
+                            {% endif %}
+                            {% if kev.product %}
+                            <div>
+                                <span class="font-semibold">Product:</span> {{ kev.product }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <span class="font-semibold">Added to KEV:</span> {{ kev.date_added }}
+                            </div>
+                            {% if kev.due_date %}
+                            <div>
+                                <span class="font-semibold">Due Date:</span> {{ kev.due_date }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if kev.required_action %}
+                        <div class="mt-2 pt-2 border-t border-red-200">
+                            <p class="text-xs text-red-800">
+                                <span class="font-semibold">Required Action:</span> {{ kev.required_action }}
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -80,6 +124,11 @@
                         <span class="ml-2 px-2 py-1 rounded text-xs font-semibold severity-{{ cve.severity|lower }}">
                             {{ cve.severity }}
                         </span>
+                        {% if cve.cvss_score > 0 %}
+                        <span class="ml-2 px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-semibold">
+                            CVSS {{ cve.cvss_score }}
+                        </span>
+                        {% endif %}
                     </div>
                     <span class="px-2 py-1 rounded text-xs font-medium
                         {% if cve.patched %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
@@ -87,6 +136,14 @@
                     </span>
                 </div>
                 <p class="text-sm text-gray-700">{{ cve.description }}</p>
+                {% if cve.version_range %}
+                <div class="mt-2 inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                    </svg>
+                    Affects: {{ cve.version_range }}
+                </div>
+                {% endif %}
                 {% if cve.source %}
                 <a href="{{ cve.source }}" target="_blank" rel="noopener noreferrer"
                    class="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-flex items-center">

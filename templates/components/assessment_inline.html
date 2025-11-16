@@ -1,9 +1,5 @@
-{% extends "base.html" %}
-
-{% block title %}{{ assessment.product_name }} - Security Assessment | CISO Insight{% endblock %}
-
-{% block content %}
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<!-- Assessment Results (Inline) -->
+<div class="mt-8">
     <!-- Header -->
     <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
         <div class="flex items-start justify-between">
@@ -68,7 +64,7 @@
         </div>
     </div>
 
-    <!-- Evidence Summary - Highlights data quality for judges -->
+    <!-- Evidence Summary -->
     <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-6 mb-6">
         <div class="flex items-start">
             <div class="flex-shrink-0">
@@ -241,9 +237,9 @@
 
     <!-- Actions -->
     <div class="flex flex-wrap gap-4 mt-8">
-        <a href="/" class="px-6 py-3 bg-ciso-blue text-white font-semibold rounded-lg hover:bg-blue-700 transition">
-            New Assessment
-        </a>
+        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="px-6 py-3 bg-ciso-blue text-white font-semibold rounded-lg hover:bg-blue-700 transition">
+            New Assessment ↑
+        </button>
         <a href="/history" class="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition">
             View History
         </a>
@@ -252,4 +248,3 @@
         </a>
     </div>
 </div>
-{% endblock %}

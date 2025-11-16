@@ -15,9 +15,22 @@ class NotableCVE(BaseModel):
     """Notable CVE entry."""
     id: str
     severity: str
+    cvss_score: float = 0.0
     description: str
     patched: bool
     source: str
+    version_range: str = None  # Affected version range (e.g., ">=2.0 AND <=2.5")
+
+
+class KEVVulnerability(BaseModel):
+    """CISA KEV vulnerability entry."""
+    cve_id: str
+    name: str
+    vendor: str = ""
+    product: str = ""
+    date_added: str
+    required_action: str = ""
+    due_date: str = ""
 
 
 class CVEAnalysis(BaseModel):
@@ -28,6 +41,8 @@ class CVEAnalysis(BaseModel):
     medium_count: int = 0
     trend: str = "unknown"
     in_cisa_kev: bool = False
+    kev_count: int = 0
+    kev_vulnerabilities: List[KEVVulnerability] = []
     notable_cves: List[NotableCVE] = []
     patch_cadence: str = "unknown"
     citations: List[str] = []
@@ -50,13 +65,28 @@ class Incidents(BaseModel):
 
 
 class TrustScoreCalculation(BaseModel):
-    """Trust score calculation breakdown."""
-    base_score: int = 50
-    cve_impact: int = 0
-    certifications_bonus: int = 0
+    """Trust score calculation breakdown using explicit scoring model."""
+    base_score: int = 100
+
+    # Positive signals (bonuses) - Not used anymore, but kept for compatibility
+    soc2_iso_bonus: int = 0
+    security_page_bonus: int = 0
+    bug_bounty_bonus: int = 0
+    admin_controls_bonus: int = 0
+    patch_cadence_bonus: int = 0
+
+    # Negative signals (penalties)
+    cisa_kev_penalty: int = 0
+    critical_cve_penalty: int = 0
+    high_cve_penalty: int = 0
+    cert_advisory_penalty: int = 0
     breach_penalty: int = 0
-    vendor_reputation: int = 0
-    final: int = 50
+    virustotal_penalty: int = 0
+    no_security_page_penalty: int = 0
+    no_compliance_penalty: int = 0
+    no_terms_privacy_penalty: int = 0
+
+    final: int = 100
 
 
 class TrustScore(BaseModel):
@@ -78,7 +108,7 @@ class Alternative(BaseModel):
 
 class AssessmentMetadata(BaseModel):
     """Assessment metadata."""
-    assessed_at: str
+    assessed_at: str | None
     evidence_quality: str = Field(..., description="high, medium, or low")
     data_completeness: int = Field(..., ge=0, le=100)
     cache_hit: bool = False
@@ -91,6 +121,8 @@ class Assessment(BaseModel):
     official_website: str
     category: str
     description: str
+    version: str = "latest"
+    sha1: Optional[str] = None
     security_posture: SecurityPosture
     cve_analysis: CVEAnalysis
     incidents: Incidents
@@ -107,3 +139,5 @@ class EntityResolution(BaseModel):
     official_website: str
     category: str
     description: str
+    version: str = "latest"
+    sha1: Optional[str] = None

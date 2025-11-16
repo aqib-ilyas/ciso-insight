@@ -16,6 +16,34 @@ class SecurityScraper:
         self.timeout = settings.HTTP_TIMEOUT
         self.user_agent = settings.USER_AGENT
 
+    async def verify_domain(self, domain: str) -> bool:
+        """
+        Verify that a domain exists and is accessible.
+
+        Args:
+            domain: Domain to verify (e.g., "slack.com" or "https://slack.com")
+
+        Returns:
+            True if domain is accessible, False otherwise
+        """
+        # Normalize domain
+        if not domain.startswith(("http://", "https://")):
+            domain = f"https://{domain}"
+
+        try:
+            headers = {"User-Agent": self.user_agent}
+            async with httpx.AsyncClient(
+                timeout=self.timeout,
+                follow_redirects=True,
+            ) as client:
+                response = await client.get(domain, headers=headers)
+                response.raise_for_status()
+                logger.info(f"Domain verified: {domain}")
+                return True
+        except Exception as e:
+            logger.error(f"Domain verification failed for {domain}: {str(e)}")
+            return False
+
     async def scrape_security_pages(self, domain: str) -> Dict[str, Any]:
         """
         Scrape security-related pages from a domain.
@@ -32,8 +60,9 @@ class SecurityScraper:
 
         base_domain = urlparse(domain).netloc or domain
 
-        # Common security page paths to try
+        # Common security page paths to try (including homepage)
         security_paths = [
+            "/",  # Homepage
             "/security",
             "/trust",
             "/security/advisories",
