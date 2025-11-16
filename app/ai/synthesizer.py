@@ -111,32 +111,69 @@ CRITICAL REQUIREMENTS:
    - Base score starts at 100
    - Use this EXACT scoring model (SUBTRACT ONLY, NO BONUSES):
 
-     NEGATIVE SIGNALS (subtract points from 100):
-     -20 if in CISA KEV (actively exploited vulnerabilities)
-     -15 for EACH critical CVE (CVSS 9.0-10.0) affecting THIS VERSION (max -30 total, i.e., 2 critical CVEs)
-     -10 for EACH high CVE (CVSS 7.0-8.9) affecting THIS VERSION (max -20 total, i.e., 2 high CVEs)
-     -10 if there is a major CERT advisory
-     -10 if publicly confirmed data breach in last 12 months
-     -10 if VirusTotal shows vendor domain flagged by 3+ security vendors
-     -5 if VirusTotal shows vendor domain flagged by 1-2 security vendors
-     -5 if no visible security page/docs found
-     -5 if no SOC2 or ISO27001 certification found
+     VULNERABILITY SIGNALS (STRONGEST WEIGHT):
+     -40 if ANY CISA KEV entry affects THIS VERSION
+     -30 if there is at least ONE UNPATCHED CRITICAL CVE (CVSS 9.0–10.0) affecting THIS VERSION
+     -15 if there is at least ONE PATCHED CRITICAL CVE affecting THIS VERSION
+     -20 if there are 2+ UNPATCHED HIGH CVEs (CVSS 7.0–8.9) affecting THIS VERSION
+     -10 if there is 1 UNPATCHED HIGH CVE affecting THIS VERSION
+     -5 if there are ONLY PATCHED HIGH CVEs affecting THIS VERSION
+
+     OTHER NEGATIVE SIGNALS (SECONDARY):
+     -10 if there is a major CERT advisory for this product/version
+     -10 if there is a publicly confirmed data breach in the last 12 months
+     -10 if VirusTotal shows the vendor domain or binary hash flagged by 3+ security vendors
+     -5 if VirusTotal shows the vendor domain or binary hash flagged by 1–2 security vendors
+     -5 if no visible security or privacy/compliance page/docs found
+     -5 if no SOC2 or ISO27001 or similar certification found
      -5 if no terms of service or privacy policy found
 
-   - Final score = 100 - (sum of all penalties)
-   - Minimum score is 0
+   - Final score = 100 - (sum of all penalties), clamped between 0 and 100
    - ALL CVE analysis MUST be version-specific, not generic
+   - If applicability of CVEs to the given version is unclear, DO NOT count them as fully applicable; instead, mention them in the narrative with "uncertain applicability" and lower confidence.
+   - Derive an overall TRUST LEVEL (low/medium/high) from the score AND vulnerability severity:
 
-   - Confidence level ("high", "medium", or "low") based on evidence quality:
-     • HIGH: 10+ citations, multiple independent sources (NVD, VirusTotal, CISA KEV),
-             vendor security pages found, version-specific CVE data available
-     • MEDIUM: 5-9 citations, some independent sources, partial vendor data,
-               version known but CVE data may be general
-     • LOW: <5 citations, mostly vendor-stated sources or missing data,
-            version unknown or CVE data unavailable
+     • If ANY of the following are true:
+        - in CISA KEV for this version
+        - at least one UNPATCHED CRITICAL CVE for this version
+       => TRUST LEVEL MUST be "low"
+          and the numeric score MUST NOT exceed 40.
 
-   - Show calculation with actual numbers used
-   - IMPORTANT: Confidence reflects how certain we are about the score, NOT the trust level
+     • Else if ANY of the following are true:
+        - at least one UNPATCHED HIGH CVE for this version
+        - at least one PATCHED CRITICAL CVE for this version
+        - a major CERT advisory exists for this product/version
+        - a serious, confirmed data breach in the last 12 months
+       => TRUST LEVEL MUST be "medium"
+          and the numeric score MUST NOT exceed 75.
+
+     • Else (no critical or high-severity issues affecting this version, no KEV, no major incidents)
+       => TRUST LEVEL MAY be "high" if the score is >= 80.
+
+   - IMPORTANT: TRUST LEVEL is about security risk. CONFIDENCE is about how certain we are about the assessment.
+
+   - Confidence level ("high", "medium", or "low") is about how reliable the score is, NOT how safe the product is:
+
+     • HIGH confidence:
+       - Version is known and was used for all CVE filters
+       - CVE data includes version-specific applicability (explicit version or clear ranges)
+       - At least one of: NVD, OpenCVE, or CISA KEV was used
+       - At least 8 citations total, including multiple independent sources
+       - No major contradictions between sources
+
+     • MEDIUM confidence:
+       - Version is known, but some CVEs have unclear or generic applicability
+       - CVE data exists, but only partially version-specific
+       - 4-7 citations OR mostly vendor-stated sources with some independent evidence
+       - Some gaps in security/compliance / VT / CERT data
+
+     • LOW confidence:
+       - Version is unknown, "latest", or mismatched across sources
+       - CVE data is missing, generic, or cannot be tied clearly to this version
+       - Fewer than 4 citations or almost all from vendor-stated sources
+       - Insufficient public evidence to reliably assess risk
+
+   - If CVE applicability to the given version is uncertain for most vulnerabilities, confidence MUST NOT be "high".
 
 3. CVE ANALYSIS (VERSION-SPECIFIC REQUIRED):
    - CRITICAL: ALL CVE analysis MUST be specific to the provided version
@@ -331,7 +368,8 @@ Generate a complete security assessment in JSON format with this EXACT schema:
 
   "trust_score": {{
     "score": 0-100,
-    "confidence": "high/medium/low",
+    "confidence": "high/medium/low",.
+    "trust_level": "high/medium/low",
     "rationale": "Clear explanation of score with main factors listed",
     "risk_factors": ["Top 3 negative signals found", "Be specific", "Include evidence"],
     "trust_factors": ["Top 3 positive signals found", "Be specific", "Include evidence"],
@@ -391,6 +429,11 @@ REMEMBER:
 - Tag every source as vendor-stated or independent
 - Show trust score calculation clearly
 - State "Insufficient public evidence" when data is missing
+- In calculation_breakdown:
+    * base_score MUST be 100
+    * All *_bonus fields MUST be 0 (we are not using bonuses in this version)
+    * Only *_penalty fields should be non-zero, matching the rules above
+    * final MUST equal 100 - sum(all penalties), clamped to [0, 100]
 - Be specific and evidence-based"""
 
     def _analyze_data_sources(
