@@ -39,6 +39,7 @@ class CVEAnalysis(BaseModel):
     critical_count: int = 0
     high_count: int = 0
     medium_count: int = 0
+    low_count: int = 0
     trend: str = "unknown"
     in_cisa_kev: bool = False
     kev_count: int = 0

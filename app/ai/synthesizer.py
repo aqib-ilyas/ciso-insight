@@ -332,6 +332,7 @@ Generate a complete security assessment in JSON format with this EXACT schema:
     "critical_count": 0,
     "high_count": 0,
     "medium_count": 0,
+    "low_count": 0,
     "trend": "increasing/stable/decreasing",
     "in_cisa_kev": false,
     "kev_count": 0,

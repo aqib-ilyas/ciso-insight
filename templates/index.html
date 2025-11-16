@@ -1,29 +1,44 @@
-{% extends "base.html" %}
-
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
     <!-- Hero Section with modern gradient -->
     <div class="text-center mb-16 fade-in">
         <div class="inline-block mb-6">
-            <span class="px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg">
+            <span
+                class="px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
+            >
                 AI-Powered Security Intelligence
             </span>
         </div>
-        <h2 class="text-5xl font-bold mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 bg-clip-text text-transparent leading-tight">
+        <h2
+            class="text-5xl font-bold mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 bg-clip-text text-transparent leading-tight"
+        >
             Security Assessments
-            <br>
+            <br />
             <span class="text-blue-600">in Minutes</span>
         </h2>
-        <p class="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Transform any application name or URL into a CISO-ready trust brief with verified sources
+        <p
+            class="text-xl text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed"
+        >
+            Transform any application name or URL into a CISO-ready trust brief
+            with verified sources
         </p>
     </div>
 
     <!-- Modern Search Card -->
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 p-8 mb-12 card-hover">
-        <form hx-post="/assess" hx-target="#results" hx-indicator="#loading" class="space-y-6">
+    <div
+        class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 p-8 mb-12 card-hover"
+    >
+        <form
+            hx-post="/assess"
+            hx-target="#results"
+            hx-indicator="#loading"
+            class="space-y-6"
+        >
             <div>
-                <label for="input" class="block text-sm font-semibold text-slate-700 mb-3">
+                <label
+                    for="input"
+                    class="block text-sm font-semibold text-slate-700 mb-3"
+                >
                     Product Name or URL
                 </label>
                 <div class="relative">
@@ -35,16 +50,31 @@
                         placeholder="e.g., Slack, 1Password, zoom.us"
                         class="w-full px-6 py-4 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg transition-all placeholder-slate-400"
                         autofocus
+                    />
+                    <div
+                        class="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400"
                     >
-                    <div class="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        <svg
+                            class="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            ></path>
                         </svg>
                     </div>
                 </div>
             </div>
             <div>
-                <label for="version" class="block text-sm font-semibold text-slate-700 mb-3">
+                <label
+                    for="version"
+                    class="block text-sm font-semibold text-slate-700 mb-3"
+                >
                     Version (Optional)
                 </label>
                 <input
@@ -53,9 +83,10 @@
                     id="version"
                     placeholder="e.g., 4.29.0, 8.5.2 (leave empty for auto-detection)"
                     class="w-full px-6 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all placeholder-slate-400"
-                >
+                />
                 <p class="mt-2 text-xs text-slate-500">
-                    💡 If not specified, we'll auto-detect the version from our database or use the latest version
+                    💡 If not specified, we'll auto-detect the version from our
+                    database or use the latest version
                 </p>
             </div>
             <button
@@ -71,74 +102,166 @@
             {% include "components/loading.html" %}
         </div>
     </div>
-
+    <!-- Results Container -->
+    <div id="results" class="fade-in"></div>
     <!-- Example Queries with modern design -->
-    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 mb-12">
+    <div
+        class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 mb-12"
+    >
         <h3 class="text-sm font-semibold text-blue-900 mb-4 flex items-center">
             <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"></path>
+                <path
+                    d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"
+                ></path>
             </svg>
             Try these examples
         </h3>
         <div class="flex flex-wrap gap-3">
-            <button onclick="document.getElementById('input').value='Slack'; document.getElementById('input').focus();"
-                    class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all">
+            <button
+                onclick="document.getElementById('input').value='Slack'; document.getElementById('input').focus();"
+                class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all"
+            >
                 Slack
             </button>
-            <button onclick="document.getElementById('input').value='1Password'; document.getElementById('input').focus();"
-                    class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all">
+            <button
+                onclick="document.getElementById('input').value='1Password'; document.getElementById('input').focus();"
+                class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all"
+            >
                 1Password
             </button>
-            <button onclick="document.getElementById('input').value='zoom.us'; document.getElementById('input').focus();"
-                    class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all">
+            <button
+                onclick="document.getElementById('input').value='zoom.us'; document.getElementById('input').focus();"
+                class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all"
+            >
                 zoom.us
             </button>
-            <button onclick="document.getElementById('input').value='TeamViewer'; document.getElementById('input').focus();"
-                    class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all">
+            <button
+                onclick="document.getElementById('input').value='TeamViewer'; document.getElementById('input').focus();"
+                class="px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-white hover:shadow-md text-sm font-medium transition-all"
+            >
                 TeamViewer
             </button>
         </div>
     </div>
 
     <!-- Modern Features Grid -->
-    <div class="grid md:grid-cols-3 gap-6 mb-12">
-        <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8 card-hover">
-            <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center mb-4 shadow-lg">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div
+            class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8 card-hover"
+        >
+            <div
+                class="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center mb-4 shadow-lg"
+            >
+                <svg
+                    class="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    ></path>
                 </svg>
             </div>
-            <h3 class="font-bold text-slate-900 mb-2 text-lg">Evidence-Based</h3>
-            <p class="text-slate-600 text-sm leading-relaxed">Every claim backed by citations from vendor and independent sources</p>
+            <h3 class="font-bold text-slate-900 mb-2 text-lg">
+                Evidence-Based
+            </h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+                Every claim backed by citations from vendor and independent
+                sources
+            </p>
         </div>
 
-        <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8 card-hover">
-            <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center mb-4 shadow-lg">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+        <div
+            class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8 card-hover"
+        >
+            <div
+                class="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center mb-4 shadow-lg"
+            >
+                <svg
+                    class="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    ></path>
                 </svg>
             </div>
             <h3 class="font-bold text-slate-900 mb-2 text-lg">CVE Analysis</h3>
-            <p class="text-slate-600 text-sm leading-relaxed mb-3">Real-time vulnerability data from multiple sources</p>
+            <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                Real-time vulnerability data from NVD and CISA KEV
+            </p>
             <div class="flex flex-wrap gap-1">
-                <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">NVD</span>
-                <span class="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">CISA KEV</span>
-                <span class="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs font-medium">VirusTotal</span>
+                <span
+                    class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium"
+                    >NVD</span
+                >
+                <span
+                    class="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium"
+                    >CISA KEV</span
+                >
             </div>
         </div>
 
-        <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8 card-hover">
-            <div class="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center mb-4 shadow-lg">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        <div
+            class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8 card-hover"
+        >
+            <div
+                class="w-12 h-12 bg-gradient-to-br from-purple-400 to-violet-500 rounded-xl flex items-center justify-center mb-4 shadow-lg"
+            >
+                <svg
+                    class="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                    ></path>
+                </svg>
+            </div>
+            <h3 class="font-bold text-slate-900 mb-2 text-lg">VirusTotal</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+                Domain reputation analysis and threat intelligence
+            </p>
+        </div>
+
+        <div
+            class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-8 card-hover"
+        >
+            <div
+                class="w-12 h-12 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl flex items-center justify-center mb-4 shadow-lg"
+            >
+                <svg
+                    class="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    ></path>
                 </svg>
             </div>
             <h3 class="font-bold text-slate-900 mb-2 text-lg">Trust Scoring</h3>
-            <p class="text-slate-600 text-sm leading-relaxed">Transparent 0-100 score with clear calculation breakdown</p>
+            <p class="text-slate-600 text-sm leading-relaxed">
+                Transparent 0-100 score with clear calculation breakdown
+            </p>
         </div>
     </div>
-
-    <!-- Results Container -->
-    <div id="results" class="fade-in"></div>
 </div>
 {% endblock %}
