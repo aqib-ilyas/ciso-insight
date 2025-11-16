@@ -1,31 +1,57 @@
 <div class="bg-white rounded-lg shadow p-6">
     <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
-        <svg class="w-6 h-6 mr-2 text-ciso-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        <svg
+            class="w-6 h-6 mr-2 text-ciso-blue"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            ></path>
         </svg>
         CVE Analysis
     </h3>
 
     <!-- Summary Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
         <div class="bg-gray-50 rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-gray-900">{{ assessment.cve_analysis.total_cves }}</div>
+            <div class="text-2xl font-bold text-gray-900">
+                {{ assessment.cve_analysis.total_cves }}
+            </div>
             <div class="text-xs text-gray-600 mt-1">Total CVEs</div>
         </div>
         <div class="bg-red-50 rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-red-600">{{ assessment.cve_analysis.critical_count }}</div>
+            <div class="text-2xl font-bold text-red-600">
+                {{ assessment.cve_analysis.critical_count }}
+            </div>
             <div class="text-xs text-red-700 mt-1">Critical</div>
         </div>
         <div class="bg-orange-50 rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-orange-600">{{ assessment.cve_analysis.high_count }}</div>
+            <div class="text-2xl font-bold text-orange-600">
+                {{ assessment.cve_analysis.high_count }}
+            </div>
             <div class="text-xs text-orange-700 mt-1">High</div>
         </div>
         <div class="bg-yellow-50 rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-yellow-600">{{ assessment.cve_analysis.medium_count }}</div>
+            <div class="text-2xl font-bold text-yellow-600">
+                {{ assessment.cve_analysis.medium_count }}
+            </div>
             <div class="text-xs text-yellow-700 mt-1">Medium</div>
         </div>
+        <div class="bg-green-50 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-green-600">
+                {{ assessment.cve_analysis.low_count }}
+            </div>
+            <div class="text-xs text-green-700 mt-1">Low</div>
+        </div>
         <div class="bg-blue-50 rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-blue-600 capitalize">{{ assessment.cve_analysis.trend }}</div>
+            <div class="text-2xl font-bold text-blue-600 capitalize">
+                {{ assessment.cve_analysis.trend }}
+            </div>
             <div class="text-xs text-blue-700 mt-1">Trend</div>
         </div>
     </div>
@@ -35,16 +61,28 @@
     <div class="bg-red-100 border-l-4 border-red-500 p-4 mb-6">
         <div class="flex items-start">
             <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                <svg
+                    class="h-5 w-5 text-red-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                >
+                    <path
+                        fill-rule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clip-rule="evenodd"
+                    ></path>
                 </svg>
             </div>
             <div class="ml-3 flex-1">
                 <p class="text-sm font-semibold text-red-800">
-                    CRITICAL: This product has {{ assessment.cve_analysis.kev_count }} vulnerabilit{{ 'y' if assessment.cve_analysis.kev_count == 1 else 'ies' }} in the CISA Known Exploited Vulnerabilities (KEV) catalog
+                    CRITICAL: This product has {{
+                    assessment.cve_analysis.kev_count }} vulnerabilit{{ 'y' if
+                    assessment.cve_analysis.kev_count == 1 else 'ies' }} in the
+                    CISA Known Exploited Vulnerabilities (KEV) catalog
                 </p>
                 <p class="text-xs text-red-700 mt-1">
-                    These vulnerabilities are actively exploited in the wild and require immediate attention.
+                    These vulnerabilities are actively exploited in the wild and
+                    require immediate attention.
                 </p>
 
                 <!-- KEV Vulnerabilities List -->
@@ -54,35 +92,53 @@
                     <div class="bg-white border border-red-300 rounded-lg p-3">
                         <div class="flex items-start justify-between mb-2">
                             <div>
-                                <span class="font-mono text-sm font-bold text-red-900">{{ kev.cve_id }}</span>
-                                <p class="text-sm font-semibold text-red-800 mt-1">{{ kev.name }}</p>
+                                <span
+                                    class="font-mono text-sm font-bold text-red-900"
+                                    >{{ kev.cve_id }}</span
+                                >
+                                <p
+                                    class="text-sm font-semibold text-red-800 mt-1"
+                                >
+                                    {{ kev.name }}
+                                </p>
                             </div>
-                            <span class="px-2 py-1 bg-red-200 text-red-900 rounded text-xs font-bold">EXPLOITED</span>
+                            <span
+                                class="px-2 py-1 bg-red-200 text-red-900 rounded text-xs font-bold"
+                                >EXPLOITED</span
+                            >
                         </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs text-gray-700 mt-2">
+                        <div
+                            class="grid grid-cols-2 gap-2 text-xs text-gray-700 mt-2"
+                        >
                             {% if kev.vendor %}
                             <div>
-                                <span class="font-semibold">Vendor:</span> {{ kev.vendor }}
+                                <span class="font-semibold">Vendor:</span> {{
+                                kev.vendor }}
+                            </div>
+                            {% endif %} {% if kev.product %}
+                            <div>
+                                <span class="font-semibold">Product:</span> {{
+                                kev.product }}
                             </div>
                             {% endif %}
-                            {% if kev.product %}
                             <div>
-                                <span class="font-semibold">Product:</span> {{ kev.product }}
-                            </div>
-                            {% endif %}
-                            <div>
-                                <span class="font-semibold">Added to KEV:</span> {{ kev.date_added }}
+                                <span class="font-semibold">Added to KEV:</span>
+                                {{ kev.date_added }}
                             </div>
                             {% if kev.due_date %}
                             <div>
-                                <span class="font-semibold">Due Date:</span> {{ kev.due_date }}
+                                <span class="font-semibold">Due Date:</span> {{
+                                kev.due_date }}
                             </div>
                             {% endif %}
                         </div>
                         {% if kev.required_action %}
                         <div class="mt-2 pt-2 border-t border-red-200">
                             <p class="text-xs text-red-800">
-                                <span class="font-semibold">Required Action:</span> {{ kev.required_action }}
+                                <span class="font-semibold"
+                                    >Required Action:</span
+                                >
+                                {{ kev.required_action }}
                             </p>
                         </div>
                         {% endif %}
@@ -98,12 +154,12 @@
     <!-- Patch Cadence -->
     <div class="mb-6">
         <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-gray-700">Patch Cadence:</span>
-            <span class="px-3 py-1 rounded-full text-xs font-semibold
-                {% if assessment.cve_analysis.patch_cadence == 'fast' %}bg-green-100 text-green-800
-                {% elif assessment.cve_analysis.patch_cadence == 'medium' %}bg-yellow-100 text-yellow-800
-                {% elif assessment.cve_analysis.patch_cadence == 'slow' %}bg-red-100 text-red-800
-                {% else %}bg-gray-100 text-gray-800{% endif %}">
+            <span class="text-sm font-medium text-gray-700"
+                >Patch Cadence:</span
+            >
+            <span
+                class="px-3 py-1 rounded-full text-xs font-semibold {% if assessment.cve_analysis.patch_cadence == 'fast' %}bg-green-100 text-green-800 {% elif assessment.cve_analysis.patch_cadence == 'medium' %}bg-yellow-100 text-yellow-800 {% elif assessment.cve_analysis.patch_cadence == 'slow' %}bg-red-100 text-red-800 {% else %}bg-gray-100 text-gray-800{% endif %}"
+            >
                 {{ assessment.cve_analysis.patch_cadence|upper }}
             </span>
         </div>
@@ -112,44 +168,80 @@
     <!-- Notable CVEs -->
     {% if assessment.cve_analysis.notable_cves %}
     <details open>
-        <summary class="cursor-pointer font-semibold text-gray-900 mb-3 hover:text-ciso-blue">
-            Notable Vulnerabilities ({{ assessment.cve_analysis.notable_cves|length }})
+        <summary
+            class="cursor-pointer font-semibold text-gray-900 mb-3 hover:text-ciso-blue"
+        >
+            Notable Vulnerabilities ({{
+            assessment.cve_analysis.notable_cves|length }})
         </summary>
         <div class="space-y-3">
             {% for cve in assessment.cve_analysis.notable_cves %}
-            <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+            <div
+                class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
+            >
                 <div class="flex items-start justify-between mb-2">
                     <div>
-                        <span class="font-mono text-sm font-semibold text-ciso-blue">{{ cve.id }}</span>
-                        <span class="ml-2 px-2 py-1 rounded text-xs font-semibold severity-{{ cve.severity|lower }}">
+                        <span
+                            class="font-mono text-sm font-semibold text-ciso-blue"
+                            >{{ cve.id }}</span
+                        >
+                        <span
+                            class="ml-2 px-2 py-1 rounded text-xs font-semibold severity-{{ cve.severity|lower }}"
+                        >
                             {{ cve.severity }}
                         </span>
                         {% if cve.cvss_score > 0 %}
-                        <span class="ml-2 px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-semibold">
+                        <span
+                            class="ml-2 px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-semibold"
+                        >
                             CVSS {{ cve.cvss_score }}
                         </span>
                         {% endif %}
                     </div>
-                    <span class="px-2 py-1 rounded text-xs font-medium
-                        {% if cve.patched %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                    <span
+                        class="px-2 py-1 rounded text-xs font-medium {% if cve.patched %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}"
+                    >
                         {{ 'Patched' if cve.patched else 'Unpatched' }}
                     </span>
                 </div>
                 <p class="text-sm text-gray-700">{{ cve.description }}</p>
                 {% if cve.version_range %}
-                <div class="mt-2 inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
-                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                <div
+                    class="mt-2 inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs"
+                >
+                    <svg
+                        class="w-3 h-3 mr-1"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                    >
+                        <path
+                            fill-rule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                            clip-rule="evenodd"
+                        ></path>
                     </svg>
                     Affects: {{ cve.version_range }}
                 </div>
-                {% endif %}
-                {% if cve.source %}
-                <a href="{{ cve.source }}" target="_blank" rel="noopener noreferrer"
-                   class="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-flex items-center">
+                {% endif %} {% if cve.source %}
+                <a
+                    href="{{ cve.source }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-flex items-center"
+                >
                     View Details
-                    <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    <svg
+                        class="w-3 h-3 ml-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        ></path>
                     </svg>
                 </a>
                 {% endif %}
@@ -159,21 +251,132 @@
     </details>
     {% else %}
     <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-        <p class="text-sm text-green-800">No critical or high severity CVEs found</p>
-    </div>
-    {% endif %}
-
-    <!-- Citations -->
-    {% if assessment.cve_analysis.citations %}
-    <div class="mt-4 pt-4 border-t border-gray-200">
-        <p class="text-xs text-gray-600">
-            <span class="font-semibold">Sources:</span>
-            {% for citation_url in assessment.cve_analysis.citations %}
-            <a href="{{ citation_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 ml-1">
-                [{{ loop.index }}]
-            </a>
-            {% endfor %}
+        <p class="text-sm text-green-800">
+            No critical or high severity CVEs found
         </p>
     </div>
     {% endif %}
+
+    <!-- Citations & Sources -->
+    <div class="mt-4 pt-4 border-t border-gray-200">
+        <div class="space-y-3">
+            <!-- All CVEs Collected -->
+            {% if assessment.cve_analysis.notable_cves %}
+            <div>
+                <p class="text-xs font-semibold text-gray-700 mb-1">
+                    CVEs Analyzed ({{
+                    assessment.cve_analysis.notable_cves|length }} shown):
+                </p>
+                <div class="flex flex-wrap gap-1">
+                    {% for cve in assessment.cve_analysis.notable_cves %}
+                    <a
+                        href="{{ cve.source }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-xs font-mono"
+                    >
+                        {{ cve.id }}
+                        <svg
+                            class="w-3 h-3 ml-1"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            ></path>
+                        </svg>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- All KEVs Collected -->
+            {% if assessment.cve_analysis.kev_vulnerabilities %}
+            <div>
+                <p class="text-xs font-semibold text-red-700 mb-1">
+                    CISA KEV CVEs ({{
+                    assessment.cve_analysis.kev_vulnerabilities|length }}):
+                </p>
+                <div class="flex flex-wrap gap-1">
+                    {% for kev in assessment.cve_analysis.kev_vulnerabilities %}
+                    <a
+                        href="https://nvd.nist.gov/vuln/detail/{{ kev.cve_id }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 hover:bg-red-100 rounded text-xs font-mono font-semibold"
+                    >
+                        {{ kev.cve_id }}
+                        <svg
+                            class="w-3 h-3 ml-1"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            ></path>
+                        </svg>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- All Citations & References -->
+            {% if assessment.citations %}
+            <div>
+                <p class="text-xs font-semibold text-gray-700 mb-2">
+                    Citations & References ({{ assessment.citations|length }}):
+                </p>
+                <div class="space-y-2">
+                    {% for citation_key, citation in assessment.citations.items() %}
+                    <div class="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <a
+                                    href="{{ citation.url }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                    {{ citation.title }}
+                                    <svg
+                                        class="w-3 h-3 ml-1 inline"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                        ></path>
+                                    </svg>
+                                </a>
+                                <p class="text-xs text-gray-600 mt-1">
+                                    {{ citation.url|truncate(80) }}
+                                </p>
+                            </div>
+                            <span
+                                class="ml-3 px-2 py-1 rounded text-xs font-semibold {% if citation.type == 'vendor-stated' %}bg-blue-100 text-blue-800{% else %}bg-green-100 text-green-800{% endif %}"
+                            >
+                                {{ citation.type }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>

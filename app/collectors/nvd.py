@@ -4,7 +4,7 @@ import logging
 import asyncio
 import re
 import json
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from packaging import version as pkg_version
 from openai import AsyncOpenAI
 from ..config import settings
@@ -21,32 +21,26 @@ class NVDClient:
         self.rate_limit_delay = settings.NVD_RATE_LIMIT
         self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
+    # --------------------------------------------------------------------- #
+    # LLM FALLBACK – used only when we have NO structured version ranges
+    # --------------------------------------------------------------------- #
     async def _llm_check_version_affected(
         self,
         cve_id: str,
         description: str,
         target_version: str,
         product_name: str,
-        version_ranges: List[Dict[str, Any]]
+        version_ranges: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
         Use LLM to determine if a CVE affects a specific version.
-
-        Args:
-            cve_id: CVE identifier
-            description: CVE description
-            target_version: Version to check (e.g., "26.0.0")
-            product_name: Product name
-            version_ranges: Extracted version ranges from CVE config
-
-        Returns:
-            Dict with 'affected' (bool), 'confidence' (float), 'reasoning' (str)
+        This is used as a LAST RESORT when structured version ranges are
+        missing or unclear.
         """
-        # Build version range summary
         version_info = ""
         if version_ranges:
             version_info = "Version ranges from NVD configuration:\n"
-            for vr in version_ranges[:5]:  # Limit to first 5 ranges
+            for vr in version_ranges[:5]:
                 if vr.get("exact_version"):
                     version_info += f"- Exact version: {vr['exact_version']}\n"
                 elif vr.get("version_start") or vr.get("version_end"):
@@ -97,16 +91,16 @@ IMPORTANT:
 
         try:
             response = await self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",  # Use mini for cost efficiency
+                model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a cybersecurity expert analyzing CVE version applicability. Be precise and conservative."
+                        "content": (
+                            "You are a cybersecurity expert analyzing CVE version "
+                            "applicability. Be precise and conservative."
+                        ),
                     },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.0,
                 response_format={"type": "json_object"},
@@ -125,27 +119,19 @@ IMPORTANT:
             return {
                 "affected": True,
                 "confidence": 0.5,
-                "reasoning": f"LLM check failed, assuming affected for safety: {str(e)}"
+                "reasoning": f"LLM check failed, assuming affected for safety: {str(e)}",
             }
 
+    # --------------------------------------------------------------------- #
+    # VERSION NORMALIZATION / RANGE LOGIC
+    # --------------------------------------------------------------------- #
     def _normalize_version(self, version_str: str) -> Optional[pkg_version.Version]:
-        """Normalize version string for comparison.
-
-        Args:
-            version_str: Version string (e.g., "2.5.0", "1.0", "latest")
-
-        Returns:
-            Parsed version object or None if invalid
-        """
-        if not version_str or version_str.lower() in ['latest', 'unknown', '*', '-']:
+        """Normalize version string for comparison."""
+        if not version_str or version_str.lower() in ["latest", "unknown", "*", "-"]:
             return None
-
         try:
-            # Clean version string - remove common prefixes/suffixes
-            cleaned = version_str.strip().lstrip('v').lstrip('V')
-            # Remove trailing wildcards
-            cleaned = cleaned.rstrip('.*')
-
+            cleaned = version_str.strip().lstrip("v").lstrip("V")
+            cleaned = cleaned.rstrip(".*")
             return pkg_version.parse(cleaned)
         except Exception as e:
             logger.debug(f"Failed to parse version '{version_str}': {e}")
@@ -157,29 +143,19 @@ IMPORTANT:
         version_start: Optional[str] = None,
         version_start_type: str = "including",
         version_end: Optional[str] = None,
-        version_end_type: str = "including"
+        version_end_type: str = "including",
     ) -> bool:
-        """Check if target version falls within affected range.
-
-        Args:
-            target_version: Version to check
-            version_start: Start of affected range
-            version_start_type: "including" or "excluding"
-            version_end: End of affected range
-            version_end_type: "including" or "excluding"
-
-        Returns:
-            True if version is affected, False otherwise
+        """
+        Check if target version falls within affected range using pure CPE data.
         """
         target = self._normalize_version(target_version)
         if not target:
             return False
 
-        # If no bounds specified at all, we can't determine - return False for safety
         if not version_start and not version_end:
+            # No bounds at all → can't decide here.
             return False
 
-        # Check lower bound
         if version_start:
             start = self._normalize_version(version_start)
             if start:
@@ -190,7 +166,6 @@ IMPORTANT:
                     if target <= start:
                         return False
 
-        # Check upper bound
         if version_end:
             end = self._normalize_version(version_end)
             if end:
@@ -204,15 +179,10 @@ IMPORTANT:
         return True
 
     def _extract_affected_versions(self, cve_item: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract affected version ranges from CVE configurations.
-
-        Args:
-            cve_item: CVE item from NVD response
-
-        Returns:
-            List of version range dictionaries
         """
-        version_ranges = []
+        Extract affected version ranges from CVE configurations (NVD 2.0 format).
+        """
+        version_ranges: List[Dict[str, Any]] = []
 
         try:
             configurations = cve_item.get("cve", {}).get("configurations", [])
@@ -227,28 +197,31 @@ IMPORTANT:
                         if not cpe_match.get("vulnerable"):
                             continue
 
-                        version_range = {
+                        version_range: Dict[str, Any] = {
                             "cpe": cpe_match.get("criteria", ""),
-                            "version_start": cpe_match.get("versionStartIncluding") or cpe_match.get("versionStartExcluding"),
-                            "version_start_type": "including" if cpe_match.get("versionStartIncluding") else "excluding",
-                            "version_end": cpe_match.get("versionEndIncluding") or cpe_match.get("versionEndExcluding"),
-                            "version_end_type": "including" if cpe_match.get("versionEndIncluding") else "excluding",
+                            "version_start": cpe_match.get("versionStartIncluding")
+                            or cpe_match.get("versionStartExcluding"),
+                            "version_start_type": "including"
+                            if cpe_match.get("versionStartIncluding")
+                            else "excluding",
+                            "version_end": cpe_match.get("versionEndIncluding")
+                            or cpe_match.get("versionEndExcluding"),
+                            "version_end_type": "including"
+                            if cpe_match.get("versionEndIncluding")
+                            else "excluding",
                         }
 
-                        # Also extract version from CPE if exact match
                         has_version_info = False
                         cpe_parts = cpe_match.get("criteria", "").split(":")
                         if len(cpe_parts) >= 6:
                             cpe_version = cpe_parts[5]
-                            if cpe_version and cpe_version not in ['*', '-']:
+                            if cpe_version and cpe_version not in ["*", "-"]:
                                 version_range["exact_version"] = cpe_version
                                 has_version_info = True
 
-                        # Check if we have any version bounds
                         if version_range.get("version_start") or version_range.get("version_end"):
                             has_version_info = True
 
-                        # Only add if we have actual version information
                         if has_version_info:
                             version_ranges.append(version_range)
 
@@ -257,39 +230,91 @@ IMPORTANT:
 
         return version_ranges
 
-    async def search_cve_by_id(self, cve_id: str) -> Dict[str, Any]:
+    # --------------------------------------------------------------------- #
+    # CPE / VENDOR HELPERS
+    # --------------------------------------------------------------------- #
+    def _extract_candidate_vendors(
+        self,
+        vulnerabilities: List[Dict[str, Any]],
+        product_name: str,
+        vendor_hint: Optional[str] = None,
+    ) -> List[str]:
         """
-        Search for a specific CVE by ID.
-
-        Args:
-            cve_id: CVE ID (e.g., CVE-2024-1234)
-
-        Returns:
-            Dict containing CVE data
+        Extract canonical vendor names from CPE criteria in NVD response.
+        We normalize product names and use vendor_hint only for tie-breaking.
         """
+        if not vulnerabilities:
+            return []
+
+        normalized_product = re.sub(r"[^a-z0-9]+", "", product_name.lower())
+        vendors = set()
+
+        for vuln in vulnerabilities:
+            configs = vuln.get("cve", {}).get("configurations", [])
+            for config in configs:
+                for node in config.get("nodes", []):
+                    for cpe_match in node.get("cpeMatch", []):
+                        crit = cpe_match.get("criteria") or ""
+                        parts = crit.split(":")
+                        # cpe:2.3:part:vendor:product:version:...
+                        if len(parts) >= 6:
+                            vendor = parts[3]
+                            prod = parts[4]
+                            norm_prod = re.sub(r"[^a-z0-9]+", "", prod.lower())
+                            if norm_prod == normalized_product and vendor not in ["*", "-"]:
+                                vendors.add(vendor)
+
+        candidates = list(vendors)
+
+        # If we have a vendor hint, try to prefer the closest match
+        if vendor_hint and candidates:
+            hint_norm = re.sub(r"[^a-z0-9]+", "", vendor_hint.lower())
+            candidates.sort(
+                key=lambda v: 0
+                if re.sub(r"[^a-z0-9]+", "", v.lower()) == hint_norm
+                else 1
+            )
+
+        return candidates
+
+    def _build_cpe_name(
+        self,
+        vendor: str,
+        product: str,
+        version: Optional[str] = None,
+    ) -> str:
+        """
+        Build a basic CPE 2.3 name for applications (part 'a').
+
+        NOTE: we put '*' for version here and rely on _process_cve_data +
+        version filtering to decide applicability. This avoids missing CVEs
+        that are expressed as version ranges instead of exact version.
+        """
+        normalized_vendor = vendor.lower()
+        normalized_product = re.sub(r"[^a-z0-9_\-\.]+", "_", product.lower())
+        cpe_version = version  # we filter by version ourselves
+        return f"cpe:2.3:a:{normalized_vendor}:{normalized_product}:{cpe_version}:*:*:*:*:*:*:*"
+
+    # --------------------------------------------------------------------- #
+    # PUBLIC API
+    # --------------------------------------------------------------------- #
+    async def search_cve_by_id(self, cve_id: str, version: str) -> Dict[str, Any]:
+        """Search for a specific CVE by ID."""
         try:
-            params = {
-                "cveId": cve_id,
-            }
-
+            params = {"cveId": cve_id}
             headers = {}
             if self.api_key:
                 headers["apiKey"] = self.api_key
 
-            # Rate limiting
             await asyncio.sleep(self.rate_limit_delay)
 
             async with httpx.AsyncClient(timeout=settings.API_TIMEOUT) as client:
                 logger.info(f"Searching NVD for CVE ID: {cve_id}")
-                response = await client.get(
-                    self.base_url,
-                    params=params,
-                    headers=headers,
-                )
+                response = await client.get(self.base_url, params=params, headers=headers)
                 response.raise_for_status()
                 data = response.json()
 
-            return await self._process_cve_data(data, version_filter=None, product_name="")
+            return await self._process_cve_data(data, version_filter=version, product_name="")
 
         except httpx.TimeoutException:
             logger.error(f"NVD API timeout for {cve_id}")
@@ -301,48 +326,113 @@ IMPORTANT:
             logger.error(f"NVD search failed for {cve_id}: {str(e)}")
             return self._empty_result()
 
-    async def search_cves(self, product_name: str, vendor_name: str = None, version: str = None) -> Dict[str, Any]:
+    async def search_cves(
+        self,
+        product_name: str,
+        vendor_name: Optional[str] = None,
+        version: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Search for CVEs related to a product and filter by version range.
+        Search for CVEs related to a product and optionally filter by version.
 
-        Args:
-            product_name: Product name
-            vendor_name: Vendor name (optional)
-            version: Specific version to check against CVE ranges (optional)
-
-        Returns:
-            Dict containing CVE statistics and notable entries
+        Flow:
+        - Always do an initial keyword search using product + vendor hint.
+        - From that response, extract canonical vendor names from CPE.
+        - If any canonical vendors exist:
+            * Build cpeName queries for vendor+product (version-agnostic).
+            * Merge those results.
+        - Then run _process_cve_data with version_filter for version-specific
+          applicability. The LLM is only used when there is no version data.
         """
         try:
-            # Use keyword search with product and vendor
-            search_terms = [product_name]
-            if vendor_name:
-                search_terms.append(vendor_name)
-
-            params = {
-                "keywordSearch": " ".join(search_terms),
-                "resultsPerPage": 100,
-            }
-
             headers = {}
             if self.api_key:
                 headers["apiKey"] = self.api_key
 
-            # Rate limiting
-            await asyncio.sleep(self.rate_limit_delay)
-
             async with httpx.AsyncClient(timeout=settings.API_TIMEOUT) as client:
-                logger.info(f"Searching NVD for: {' '.join(search_terms)}")
-                response = await client.get(
-                    self.base_url,
-                    params=params,
-                    headers=headers,
-                )
-                response.raise_for_status()
-                data = response.json()
+                # Stage 1: initial keyword search
+                search_terms = [product_name]
+                if vendor_name:
+                    search_terms.append(vendor_name)
 
-            # Process and filter by version ranges
-            return await self._process_cve_data(data, version_filter=version, product_name=product_name)
+                params = {
+                    "keywordSearch": product_name,
+                    "resultsPerPage": 200,
+                }
+                # params = {
+                #     "keywordSearch": " ".join(product_name),
+                #     "resultsPerPage": 200,
+                # }
+
+                await asyncio.sleep(self.rate_limit_delay)
+                logger.info(f"Initial NVD search for: {product_name}")
+                resp = await client.get(self.base_url, params=params, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                vulnerabilities = data.get("vulnerabilities", [])
+
+                if not vulnerabilities:
+                    logger.info("No CVEs from initial keyword search.")
+                    return self._empty_result()
+
+                # If we don't care about version, just process keyword results.
+                if not version:
+                    return await self._process_cve_data(
+                        data,
+                        version_filter=version,
+                        product_name=product_name,
+                    )
+
+                # Stage 2: infer canonical vendor(s) from CPE
+                candidate_vendors = self._extract_candidate_vendors(
+                    vulnerabilities,
+                    product_name=product_name,
+                    vendor_hint=vendor_name,
+                )
+
+                if not candidate_vendors:
+                    logger.info(
+                        "No canonical vendors inferred from CPE; using keyword search data."
+                    )
+                    return await self._process_cve_data(
+                        data,
+                        version_filter=version,
+                        product_name=product_name,
+                    )
+
+                logger.info(f"Inferred candidate vendors from CPE: {candidate_vendors}")
+
+                all_vulns: List[Dict[str, Any]] = []
+
+                # For each canonical vendor, do a cpeName-based query
+                for vendor in candidate_vendors:
+                    cpe_name = self._build_cpe_name(vendor, product_name, version)
+                    cpe_params = {
+                        "cpeName": cpe_name,
+                        "resultsPerPage": 200,
+                    }
+                    await asyncio.sleep(self.rate_limit_delay)
+                    logger.info(f"NVD cpeName search for: {cpe_name}")
+                    cpe_resp = await client.get(
+                        self.base_url, params=cpe_params, headers=headers
+                    )
+                    cpe_resp.raise_for_status()
+                    cpe_data = cpe_resp.json()
+                    all_vulns.extend(cpe_data.get("vulnerabilities", []))
+
+                if not all_vulns:
+                    logger.info(
+                        "cpeName searches returned no results."
+                    )
+
+                # Build a synthetic NVD-like response with merged vulnerabilities
+                merged_data = {"vulnerabilities": all_vulns}
+
+                return await self._process_cve_data(
+                    merged_data,
+                    version_filter=version,
+                    product_name=product_name,
+                )
 
         except httpx.TimeoutException:
             logger.error(f"NVD API timeout for {product_name}")
@@ -354,17 +444,22 @@ IMPORTANT:
             logger.error(f"NVD search failed: {str(e)}")
             return self._empty_result()
 
-    async def _process_cve_data(self, data: Dict[str, Any], version_filter: str = None, product_name: str = "") -> Dict[str, Any]:
+    # --------------------------------------------------------------------- #
+    # CORE PROCESSING
+    # --------------------------------------------------------------------- #
+    async def _process_cve_data(
+        self,
+        data: Dict[str, Any],
+        version_filter: Optional[str] = None,
+        product_name: str = "",
+    ) -> Dict[str, Any]:
         """
-        Process NVD API response and filter by version using LLM.
+        Process NVD API response and (optionally) filter by version.
 
-        Args:
-            data: NVD API response data
-            version_filter: Optional version to filter against
-            product_name: Product name for LLM context
-
-        Returns:
-            Processed CVE data with LLM-verified version filtering
+        Version logic:
+        - If version_filter is provided:
+            1) Try to use structured CPE version ranges via _is_version_affected.
+            2) ONLY if no ranges exist, call the LLM as fallback.
         """
         vulnerabilities = data.get("vulnerabilities", [])
         total_raw_cves = len(vulnerabilities)
@@ -372,27 +467,23 @@ IMPORTANT:
         if total_raw_cves == 0:
             return self._empty_result()
 
-        # Count by severity
-        critical_count = 0
-        high_count = 0
-        medium_count = 0
-        low_count = 0
-        notable_cves = []
+        critical_count = high_count = medium_count = low_count = 0
+        notable_cves: List[Dict[str, Any]] = []
         version_specific_count = 0
-        version_filtered_cves = []
+        all_cve_ids: List[str] = []  # Track ALL CVE IDs that pass version filtering
 
-        logger.info(f"Processing {total_raw_cves} CVEs (version filter: {version_filter})")
+        logger.info(
+            f"Processing {total_raw_cves} CVEs (version filter: {version_filter})"
+        )
 
         for vuln in vulnerabilities:
             cve = vuln.get("cve", {})
             cve_id = cve.get("id", "")
 
-            # Get CVSS score and severity
+            # CVSS severity
             metrics = cve.get("metrics", {})
             severity = "UNKNOWN"
             cvss_score = 0.0
-
-            # Try CVSS v3.1 first, then v3.0, then v2.0
             for metric_type in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
                 if metric_type in metrics and metrics[metric_type]:
                     cvss_data = metrics[metric_type][0].get("cvssData", {})
@@ -400,7 +491,7 @@ IMPORTANT:
                     cvss_score = cvss_data.get("baseScore", 0.0)
                     break
 
-            # Get description
+            # English description
             descriptions = cve.get("descriptions", [])
             description = ""
             for desc in descriptions:
@@ -408,64 +499,84 @@ IMPORTANT:
                     description = desc.get("value", "")
                     break
 
-            # Version filtering - use LLM to check if CVE affects target version
-            version_applicable = True  # Default to true if no version filter
-            version_range_info = None
-            llm_reasoning = None
+            version_applicable = True
+            version_range_info: Optional[str] = None
+            llm_reasoning: Optional[str] = None
 
-            if version_filter and version_filter not in ['latest', 'unknown']:
-                # Extract version ranges from CVE configuration
+            if version_filter and version_filter not in ["latest", "unknown"]:
+                # Try structured version ranges first
                 version_ranges = self._extract_affected_versions(vuln)
 
-                # Use LLM to determine if this CVE affects the target version
-                llm_result = await self._llm_check_version_affected(
-                    cve_id=cve_id,
-                    description=description,
-                    target_version=version_filter,
-                    product_name=product_name,
-                    version_ranges=version_ranges
-                )
-
-                version_applicable = llm_result["affected"]
-                llm_reasoning = llm_result["reasoning"]
-
-                # Build version range display from LLM reasoning or structured data
-                if version_ranges and llm_result["affected"]:
-                    # Try to extract a clean range summary
+                if version_ranges:
+                    applicable = False
                     for vr in version_ranges:
-                        if vr.get("exact_version"):
-                            version_range_info = f"v{vr['exact_version']}"
-                            break
-                        elif vr.get("version_start") or vr.get("version_end"):
-                            display_range = []
-                            if vr.get("version_start"):
-                                display_range.append(f">{'=' if vr.get('version_start_type') == 'including' else ''}{vr.get('version_start')}")
-                            if vr.get("version_end"):
-                                display_range.append(f"<{'=' if vr.get('version_end_type') == 'including' else ''}{vr.get('version_end')}")
-                            version_range_info = " AND ".join(display_range) if display_range else None
+                        if self._is_version_affected(
+                            target_version=version_filter,
+                            version_start=vr.get("version_start"),
+                            version_start_type=vr.get("version_start_type", "including"),
+                            version_end=vr.get("version_end"),
+                            version_end_type=vr.get("version_end_type", "including"),
+                        ):
+                            applicable = True
+                            # Build simple range info
+                            if vr.get("exact_version"):
+                                version_range_info = f"v{vr['exact_version']}"
+                            else:
+                                display = []
+                                if vr.get("version_start"):
+                                    display.append(
+                                        f">{'=' if vr.get('version_start_type') == 'including' else ''}{vr.get('version_start')}"
+                                    )
+                                if vr.get("version_end"):
+                                    display.append(
+                                        f"<{'=' if vr.get('version_end_type') == 'including' else ''}{vr.get('version_end')}"
+                                    )
+                                version_range_info = " AND ".join(display) if display else None
                             break
 
-                if not version_range_info and llm_result["affected"]:
-                    version_range_info = llm_reasoning[:50] + "..." if len(llm_reasoning) > 50 else llm_reasoning
+                    version_applicable = applicable
+                    if not version_applicable:
+                        logger.info(
+                            f"✗ CVE {cve_id} does NOT affect version {version_filter} "
+                            f"(structured CPE ranges)"
+                        )
+                        continue
 
-                if not version_applicable:
-                    logger.info(
-                        f"✗ CVE {cve_id} does NOT affect version {version_filter}\n"
-                        f"  Reason: {llm_reasoning}\n"
-                        f"  Confidence: {llm_result['confidence']:.2f}"
-                    )
-                    continue
                 else:
-                    logger.info(
-                        f"✓ CVE {cve_id} AFFECTS version {version_filter}\n"
-                        f"  Reason: {llm_reasoning}\n"
-                        f"  Confidence: {llm_result['confidence']:.2f}"
+                    # No structured ranges → LAST RESORT: ask LLM
+                    llm_result = await self._llm_check_version_affected(
+                        cve_id=cve_id,
+                        description=description,
+                        target_version=version_filter,
+                        product_name=product_name,
+                        version_ranges=[],
                     )
+                    version_applicable = llm_result["affected"]
+                    llm_reasoning = llm_result["reasoning"]
 
-            # This CVE affects the target version - count it
+                    if not version_applicable:
+                        logger.info(
+                            f"✗ CVE {cve_id} does NOT affect version {version_filter}\n"
+                            f"  Reason (LLM): {llm_reasoning}\n"
+                            f"  Confidence: {llm_result['confidence']:.2f}"
+                        )
+                        continue
+                    else:
+                        logger.info(
+                            f"✓ CVE {cve_id} AFFECTS version {version_filter}\n"
+                            f"  Reason (LLM): {llm_reasoning}\n"
+                            f"  Confidence: {llm_result['confidence']:.2f}"
+                        )
+                        version_range_info = (
+                            llm_reasoning[:50] + "..."
+                            if llm_reasoning and len(llm_reasoning) > 50
+                            else llm_reasoning
+                        )
+
+            # CVE is considered applicable (or no version filter)
             version_specific_count += 1
+            all_cve_ids.append(cve_id)  # Track this CVE ID
 
-            # Count by severity
             if severity == "CRITICAL":
                 critical_count += 1
             elif severity == "HIGH":
@@ -475,28 +586,28 @@ IMPORTANT:
             elif severity == "LOW":
                 low_count += 1
 
-            # Add to notable if critical or high
             if severity in ["CRITICAL", "HIGH"] and len(notable_cves) < 10:
-                # Build NVD source URL for this CVE
                 nvd_url = f"https://nvd.nist.gov/vuln/detail/{cve_id}"
+                notable_cves.append(
+                    {
+                        "id": cve_id,
+                        "severity": severity,
+                        "cvss_score": cvss_score,
+                        "description": description[:200] + "..."
+                        if len(description) > 200
+                        else description,
+                        "patched": False,  # patch info is handled elsewhere / by AI
+                        "source": nvd_url,
+                        "version_range": version_range_info,
+                    }
+                )
 
-                notable_cves.append({
-                    "id": cve_id,
-                    "severity": severity,
-                    "cvss_score": cvss_score,
-                    "description": description[:200] + "..." if len(description) > 200 else description,
-                    "patched": False,  # NVD doesn't provide patch status - AI will determine
-                    "source": nvd_url,
-                    "version_range": version_range_info,
-                })
-
-        # Sort notable by CVSS score
         notable_cves.sort(key=lambda x: x.get("cvss_score", 0), reverse=True)
 
-        # Log filtering results
-        if version_filter and version_filter not in ['latest', 'unknown']:
+        if version_filter and version_filter not in ["latest", "unknown"]:
             logger.info(
-                f"Version filtering: {total_raw_cves} total CVEs → {version_specific_count} affect version {version_filter} "
+                f"Version filtering: {total_raw_cves} total CVEs → {version_specific_count} "
+                f"affect version {version_filter} "
                 f"({critical_count} critical, {high_count} high, {medium_count} medium, {low_count} low)"
             )
 
@@ -506,12 +617,18 @@ IMPORTANT:
             "high_count": high_count,
             "medium_count": medium_count,
             "low_count": low_count,
-            "notable_cves": notable_cves[:5],  # Top 5
-            "source_url": f"{self.base_url}?keywordSearch={vulnerabilities[0].get('cve', {}).get('id', '')}" if vulnerabilities else self.base_url,
-            "version_filtered": bool(version_filter and version_filter not in ['latest', 'unknown']),
+            "notable_cves": notable_cves[:5],
+            "all_cve_ids": all_cve_ids,  # ALL CVE IDs that passed version filtering
+            "source_url": self.base_url,
+            "version_filtered": bool(
+                version_filter and version_filter not in ["latest", "unknown"]
+            ),
             "raw_cve_count": total_raw_cves,
         }
 
+    # --------------------------------------------------------------------- #
+    # UTIL
+    # --------------------------------------------------------------------- #
     def _empty_result(self) -> Dict[str, Any]:
         """Return empty CVE result."""
         return {

@@ -169,26 +169,53 @@ async def assess_product(request: Request, input: str = Form(...), version: str 
 
         cve_data, kev_data = await asyncio.gather(nvd_task, kev_task)
 
-        # If KEV has CVEs but NVD search found nothing, look up the KEV CVE IDs in NVD
-        if kev_data.get("in_kev") and kev_data.get("kev_count", 0) > 0 and cve_data.get("total_cves", 0) == 0:
-            logger.warning(
-                f"KEV has {kev_data['kev_count']} CVEs but NVD search found 0. "
-                f"This suggests NVD search query needs adjustment."
-            )
-            # Extract CVE IDs from KEV data
-            kev_cve_ids = [v.get("cve_id") for v in kev_data.get("kev_vulnerabilities", [])]
-            if kev_cve_ids:
-                logger.info(f"Looking up KEV CVE IDs in NVD: {kev_cve_ids}")
-                # Query NVD for each KEV CVE ID
+        # Filter KEV vulnerabilities to only include those present in final NVD results
+        # This ensures version-specific filtering is respected
+        if kev_data.get("in_kev") and kev_data.get("kev_vulnerabilities"):
+            # Get ALL CVE IDs that passed version filtering (not just notable top 5)
+            nvd_cve_ids = set(cve_data.get("all_cve_ids", []))
+
+            # If we have NVD CVEs, filter KEV to only those that appear in NVD results
+            if nvd_cve_ids:
+                original_kev_count = len(kev_data["kev_vulnerabilities"])
+                filtered_kev_vulns = [
+                    kev_vuln for kev_vuln in kev_data["kev_vulnerabilities"]
+                    if kev_vuln.get("cve_id") in nvd_cve_ids
+                ]
+
+                kev_data["kev_vulnerabilities"] = filtered_kev_vulns
+                kev_data["kev_count"] = len(filtered_kev_vulns)
+                kev_data["in_kev"] = len(filtered_kev_vulns) > 0
+
+                if original_kev_count > len(filtered_kev_vulns):
+                    logger.info(
+                        f"KEV filtering: {original_kev_count} KEV CVEs → {len(filtered_kev_vulns)} "
+                        f"after version filtering (removed {original_kev_count - len(filtered_kev_vulns)} "
+                        f"CVEs that don't affect version {entity.version})"
+                    )
+            else:
+                # No NVD CVEs found, but we have KEV - need to verify each KEV CVE
+                logger.warning(
+                    f"KEV has {kev_data['kev_count']} CVEs but NVD search found 0. "
+                    f"Verifying KEV CVEs against version {entity.version}"
+                )
+
+                verified_kev_vulns = []
+                kev_cve_ids = [v.get("cve_id") for v in kev_data.get("kev_vulnerabilities", [])]
+
                 for cve_id in kev_cve_ids[:5]:  # Limit to avoid rate limits
                     try:
-                        specific_cve = await nvd_client.search_cve_by_id(cve_id)
-                        if specific_cve:
+                        specific_cve = await nvd_client.search_cve_by_id(cve_id, entity.version)
+                        if specific_cve and specific_cve.get("total_cves", 0) > 0:
+                            # This KEV CVE affects the version
+                            kev_vuln = next((v for v in kev_data["kev_vulnerabilities"] if v.get("cve_id") == cve_id), None)
+                            if kev_vuln:
+                                verified_kev_vulns.append(kev_vuln)
+
                             # Add to CVE data
                             if cve_data.get("total_cves", 0) == 0:
                                 cve_data = specific_cve
                             else:
-                                # Merge the data
                                 cve_data["total_cves"] += specific_cve.get("total_cves", 0)
                                 cve_data["critical_count"] += specific_cve.get("critical_count", 0)
                                 cve_data["high_count"] += specific_cve.get("high_count", 0)
@@ -196,7 +223,16 @@ async def assess_product(request: Request, input: str = Form(...), version: str 
                     except Exception as e:
                         logger.error(f"Failed to lookup CVE {cve_id}: {e}")
 
-        logger.info(f"Final CVE data: {cve_data['total_cves']} total CVEs, KEV: {kev_data.get('kev_count', 0)}")
+                # Update KEV data with only verified vulnerabilities
+                kev_data["kev_vulnerabilities"] = verified_kev_vulns
+                kev_data["kev_count"] = len(verified_kev_vulns)
+                kev_data["in_kev"] = len(verified_kev_vulns) > 0
+
+        logger.info(
+            f"Final results for version {entity.version}: "
+            f"{cve_data['total_cves']} total CVEs, "
+            f"{kev_data.get('kev_count', 0)} KEV vulnerabilities"
+        )
 
         # Scrape security pages and analyze domain reputation in parallel
         security_pages = {}
@@ -363,14 +399,42 @@ async def compare_two_products(request: Request, product1: str, product2: str):
                 kev_task = kev_client.check_product_in_kev(entity.product_name, entity.vendor_name)
                 cve_data, kev_data = await asyncio.gather(nvd_task, kev_task)
 
-                # Handle KEV/NVD inconsistency
-                if kev_data.get("in_kev") and kev_data.get("kev_count", 0) > 0 and cve_data.get("total_cves", 0) == 0:
-                    kev_cve_ids = [v.get("cve_id") for v in kev_data.get("kev_vulnerabilities", [])]
-                    if kev_cve_ids:
+                # Filter KEV vulnerabilities to only include those present in final NVD results
+                if kev_data.get("in_kev") and kev_data.get("kev_vulnerabilities"):
+                    # Get ALL CVE IDs that passed version filtering (not just notable top 5)
+                    nvd_cve_ids = set(cve_data.get("all_cve_ids", []))
+
+                    if nvd_cve_ids:
+                        original_kev_count = len(kev_data["kev_vulnerabilities"])
+                        filtered_kev_vulns = [
+                            kev_vuln for kev_vuln in kev_data["kev_vulnerabilities"]
+                            if kev_vuln.get("cve_id") in nvd_cve_ids
+                        ]
+
+                        kev_data["kev_vulnerabilities"] = filtered_kev_vulns
+                        kev_data["kev_count"] = len(filtered_kev_vulns)
+                        kev_data["in_kev"] = len(filtered_kev_vulns) > 0
+
+                        if original_kev_count > len(filtered_kev_vulns):
+                            logger.info(
+                                f"KEV filtering: {original_kev_count} → {len(filtered_kev_vulns)} "
+                                f"(version {entity.version})"
+                            )
+                    else:
+                        # No NVD CVEs found, verify KEV CVEs
+                        logger.warning(f"Verifying KEV CVEs against version {entity.version}")
+
+                        verified_kev_vulns = []
+                        kev_cve_ids = [v.get("cve_id") for v in kev_data.get("kev_vulnerabilities", [])]
+
                         for cve_id in kev_cve_ids[:5]:
                             try:
-                                specific_cve = await nvd_client.search_cve_by_id(cve_id)
+                                specific_cve = await nvd_client.search_cve_by_id(cve_id, entity.version)
                                 if specific_cve and specific_cve.get("total_cves", 0) > 0:
+                                    kev_vuln = next((v for v in kev_data["kev_vulnerabilities"] if v.get("cve_id") == cve_id), None)
+                                    if kev_vuln:
+                                        verified_kev_vulns.append(kev_vuln)
+
                                     if cve_data.get("total_cves", 0) == 0:
                                         cve_data = specific_cve
                                     else:
@@ -380,6 +444,10 @@ async def compare_two_products(request: Request, product1: str, product2: str):
                                         cve_data["notable_cves"].extend(specific_cve.get("notable_cves", []))
                             except Exception as e:
                                 logger.error(f"Failed to lookup CVE {cve_id}: {e}")
+
+                        kev_data["kev_vulnerabilities"] = verified_kev_vulns
+                        kev_data["kev_count"] = len(verified_kev_vulns)
+                        kev_data["in_kev"] = len(verified_kev_vulns) > 0
 
                 security_pages = {}
                 terms_privacy = {}
