@@ -1,7 +1,7 @@
 """Pydantic models for CISO Insight."""
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Citation(BaseModel):
@@ -86,17 +86,42 @@ class TrustScoreCalculation(BaseModel):
     no_compliance_penalty: int = 0
     no_terms_privacy_penalty: int = 0
 
-    final: int = 100
+    final: int = 0
+
+    @model_validator(mode="after")
+    def compute_final(cls, model: "TrustScoreCalculation") -> "TrustScoreCalculation":
+        penalty_fields = [
+            "cisa_kev_penalty",
+            "critical_cve_penalty",
+            "high_cve_penalty",
+            "cert_advisory_penalty",
+            "breach_penalty",
+            "virustotal_penalty",
+            "no_security_page_penalty",
+            "no_compliance_penalty",
+            "no_terms_privacy_penalty",
+        ]
+        total_penalties = sum(int(getattr(model, f) or 0) for f in penalty_fields)
+        final = int(model.base_score or 0) - total_penalties
+        model.final = max(0, min(final, 100))
+        return model
 
 
 class TrustScore(BaseModel):
     """Trust score with transparency."""
-    score: int = Field(..., ge=0, le=100)
+    score: None | int = Field(..., ge=0, le=100)
     confidence: str = Field(..., description="high, medium, or low")
     rationale: str
     risk_factors: List[str] = []
     trust_factors: List[str] = []
     calculation_breakdown: TrustScoreCalculation
+
+    @model_validator(mode="after")
+    def sync_score(cls, model: "TrustScore") -> "TrustScore":
+        if getattr(model, "calculation_breakdown", None) is not None:
+            model.score = int(model.calculation_breakdown.final or 0)
+            model.score = max(0, min(model.score, 100))
+        return model
 
 
 class Alternative(BaseModel):
